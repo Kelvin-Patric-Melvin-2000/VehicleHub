@@ -4,10 +4,12 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import { connectDb } from "./db.js";
+import { seedVehicleTypes } from "./seed/vehicleTypes.js";
 import apiV1 from "./routes/index.js";
 
 async function main() {
   await connectDb();
+  await seedVehicleTypes();
 
   const app = express();
   const PORT = Number(process.env.PORT) || 3001;

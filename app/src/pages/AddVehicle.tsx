@@ -1,27 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateVehicle } from "@/hooks/useVehicles";
+import { useVehicleTypes } from "@/hooks/useVehicleTypes";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AddVehicle() {
   const navigate = useNavigate();
   const createVehicle = useCreateVehicle();
   const { toast } = useToast();
+  const { data: vehicleTypes = [], isLoading: typesLoading, isError: typesError } = useVehicleTypes();
   const [form, setForm] = useState({
     name: "",
-    type: "motorcycle",
+    type: "",
     make: "",
     model: "",
     year: "",
     registration_number: "",
     current_mileage: "",
   });
+
+  useEffect(() => {
+    if (vehicleTypes.length > 0 && form.type === "") {
+      setForm((f) => ({ ...f, type: vehicleTypes[0].slug }));
+    }
+  }, [vehicleTypes, form.type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,14 +71,26 @@ export default function AddVehicle() {
               </div>
               <div className="space-y-2">
                 <Label>Type</Label>
-                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="motorcycle">Motorcycle</SelectItem>
-                    <SelectItem value="scooter">Scooter</SelectItem>
-                    <SelectItem value="bike">Bike</SelectItem>
-                  </SelectContent>
-                </Select>
+                {typesError ? (
+                  <p className="text-sm text-destructive">Could not load vehicle types. Try again later.</p>
+                ) : (
+                  <Select
+                    value={form.type}
+                    onValueChange={(v) => setForm({ ...form, type: v })}
+                    disabled={typesLoading || vehicleTypes.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={typesLoading ? "Loading…" : "Select type"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vehicleTypes.map((vt) => (
+                        <SelectItem key={vt.slug} value={vt.slug}>
+                          {vt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -98,7 +118,11 @@ export default function AddVehicle() {
               </div>
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={() => navigate("/")} className="flex-1">Cancel</Button>
-                <Button type="submit" className="flex-1" disabled={createVehicle.isPending}>
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={createVehicle.isPending || typesLoading || typesError || !form.type}
+                >
                   {createVehicle.isPending ? "Adding..." : "Add Vehicle"}
                 </Button>
               </div>

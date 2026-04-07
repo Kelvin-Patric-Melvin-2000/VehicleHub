@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { Vehicle } from "../../models/Vehicle.js";
 import { findOwnedVehicle } from "../../lib/ownership.js";
+import { getDefaultVehicleTypeSlug, isKnownVehicleTypeSlug } from "../../lib/vehicleTypeHelpers.js";
 import { toVehicleJson } from "../../lib/serialize.js";
 
 const router = Router();
@@ -16,10 +17,21 @@ router.get("/vehicles", async (req, res) => {
 router.post("/vehicles", async (req, res) => {
   try {
     const b = req.body ?? {};
+    let typeSlug: string;
+    if (typeof b.type === "string" && b.type.trim()) {
+      const t = b.type.trim();
+      if (!(await isKnownVehicleTypeSlug(t))) {
+        res.status(400).json({ error: "Unknown vehicle type" });
+        return;
+      }
+      typeSlug = t;
+    } else {
+      typeSlug = await getDefaultVehicleTypeSlug();
+    }
     const doc = await Vehicle.create({
       user_id: req.userId,
       name: String(b.name ?? ""),
-      type: typeof b.type === "string" ? b.type : "motorcycle",
+      type: typeSlug,
       make: b.make ?? null,
       model: b.model ?? null,
       year: b.year != null ? Number(b.year) : null,
@@ -55,7 +67,17 @@ router.patch("/vehicles/:vehicleId", async (req, res) => {
   const b = req.body ?? {};
   const $set: Record<string, unknown> = {};
   if ("name" in b) $set.name = String(b.name ?? "");
-  if ("type" in b) $set.type = typeof b.type === "string" ? b.type : "motorcycle";
+  if ("type" in b) {
+    const t = typeof b.type === "string" ? b.type.trim() : "";
+    if (!t) {
+      $set.type = await getDefaultVehicleTypeSlug();
+    } else if (!(await isKnownVehicleTypeSlug(t))) {
+      res.status(400).json({ error: "Unknown vehicle type" });
+      return;
+    } else {
+      $set.type = t;
+    }
+  }
   if ("make" in b) $set.make = b.make ?? null;
   if ("model" in b) $set.model = b.model ?? null;
   if ("year" in b) $set.year = b.year != null ? Number(b.year) : null;

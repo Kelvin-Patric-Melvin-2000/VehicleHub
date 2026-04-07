@@ -4,6 +4,12 @@ export type AppUser = {
   displayName: string | null;
 };
 
+export type VehicleTypeOption = {
+  slug: string;
+  label: string;
+  sort_order: number;
+};
+
 export type Vehicle = {
   id: string;
   user_id: string;
