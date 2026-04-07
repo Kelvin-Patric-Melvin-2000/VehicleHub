@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useDocuments, useCreateDocument, useDeleteDocument, uploadDocumentFile } from "@/hooks/useDocuments";
-import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +23,6 @@ function getExpiryBadge(expiryDate: string | null) {
 }
 
 export function DocumentsTab({ vehicleId }: { vehicleId: string }) {
-  const { user } = useAuth();
   const { data: docs, isLoading } = useDocuments(vehicleId);
   const createDoc = useCreateDocument();
   const deleteDoc = useDeleteDocument();
@@ -39,8 +37,8 @@ export function DocumentsTab({ vehicleId }: { vehicleId: string }) {
     setUploading(true);
     try {
       let fileUrl: string | null = null;
-      if (file && user) {
-        fileUrl = await uploadDocumentFile(user.id, file);
+      if (file) {
+        fileUrl = await uploadDocumentFile(file);
       }
       await createDoc.mutateAsync({
         vehicle_id: vehicleId,
