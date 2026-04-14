@@ -1,0 +1,22 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+*.log
+npm-debug.*
+*.tsbuildinfo
+
+# Native (after prebuild / run:android)
+android/
+ios/
+
+.env
+.env.*
+
+coverage/
