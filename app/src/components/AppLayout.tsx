@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation } from "react-router-dom";
-import { Bike, LayoutDashboard, LogOut, Plus } from "lucide-react";
+import { Bike, LayoutDashboard, LogOut, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -10,6 +10,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { to: "/", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/add-vehicle", icon: Plus, label: "Add Vehicle" },
+    { to: "/settings", icon: Settings, label: "Settings" },
   ];
 
   return (

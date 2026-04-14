@@ -7,8 +7,8 @@ function day(d: Date | null | undefined): string | null {
 }
 
 /** Mongoose `.lean()` shapes are awkward to type; normalize at the boundary. */
-export function toVehicleJson(doc: any) {
-  return {
+export function toVehicleJson(doc: any, access?: "owner" | "view" | "edit") {
+  const base: Record<string, unknown> = {
     id: doc._id.toString(),
     user_id: doc.user_id.toString(),
     name: doc.name,
@@ -22,6 +22,8 @@ export function toVehicleJson(doc: any) {
     created_at: new Date(doc.created_at).toISOString(),
     updated_at: new Date(doc.updated_at).toISOString(),
   };
+  if (access) base.access = access;
+  return base;
 }
 
 export function toFuelLogJson(doc: any) {
@@ -32,6 +34,7 @@ export function toFuelLogJson(doc: any) {
     date: day(doc.date as Date),
     odometer_reading: doc.odometer_reading,
     fuel_quantity_liters: doc.fuel_quantity_liters,
+    energy_unit: doc.energy_unit === "kWh" ? "kWh" : "L",
     cost: doc.cost,
     fuel_station: doc.fuel_station ?? null,
     created_at: new Date(doc.created_at).toISOString(),

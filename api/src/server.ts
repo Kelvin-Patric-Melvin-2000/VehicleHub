@@ -5,11 +5,19 @@ import cors from "cors";
 import express from "express";
 import { connectDb } from "./db.js";
 import { seedVehicleTypes } from "./seed/vehicleTypes.js";
+import { seedMaintenanceTemplates } from "./seed/maintenanceTemplates.js";
+import { seedDemoData } from "./seed/demoData.js";
 import apiV1 from "./routes/index.js";
+import { runReminderDispatch } from "./lib/reminderDispatch.js";
 
 async function main() {
   await connectDb();
   await seedVehicleTypes();
+  await seedMaintenanceTemplates();
+  if (process.env.SEED_DEMO_DATA === "true") {
+    const r = await seedDemoData();
+    console.log(r.message);
+  }
 
   const app = express();
   const PORT = Number(process.env.PORT) || 3001;
@@ -29,6 +37,16 @@ async function main() {
   app.listen(PORT, () => {
     console.log(`API listening on http://localhost:${PORT}`);
   });
+
+  if (process.env.REMINDER_INTERVAL_MS) {
+    const ms = Number(process.env.REMINDER_INTERVAL_MS);
+    if (Number.isFinite(ms) && ms >= 60_000) {
+      setInterval(() => {
+        runReminderDispatch().catch((e) => console.error("reminder dispatch", e));
+      }, ms);
+      console.log(`Reminder dispatch interval: ${ms}ms`);
+    }
+  }
 }
 
 main().catch((err) => {

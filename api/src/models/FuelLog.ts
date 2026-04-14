@@ -7,6 +7,8 @@ const fuelLogSchema = new mongoose.Schema(
     date: { type: Date, required: true },
     odometer_reading: { type: Number, required: true },
     fuel_quantity_liters: { type: Number, required: true },
+    /** Liquid fuel liters, or kWh for electric charging sessions. */
+    energy_unit: { type: String, enum: ["L", "kWh"], default: "L" },
     cost: { type: Number, required: true },
     fuel_station: { type: String, default: null },
   },

@@ -2,7 +2,7 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { ServiceRecord } from "../../models/ServiceRecord.js";
-import { findOwnedVehicle } from "../../lib/ownership.js";
+import { findEditableVehicle, getAccessibleVehicleIds } from "../../lib/ownership.js";
 import { toServiceRecordJson } from "../../lib/serialize.js";
 
 const router = Router();
@@ -10,10 +10,16 @@ router.use(requireAuth);
 
 router.get("/service-records", async (req, res) => {
   const vehicleId = typeof req.query.vehicleId === "string" ? req.query.vehicleId : undefined;
-  const filter: Record<string, unknown> = { user_id: req.userId };
+  const { ids: accessibleIds } = await getAccessibleVehicleIds(req.userId!);
+  const idStr = new Set(accessibleIds.map((id) => id.toString()));
+  const filter: Record<string, unknown> = { vehicle_id: { $in: accessibleIds } };
   if (vehicleId) {
     if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
       res.status(400).json({ error: "Invalid vehicleId" });
+      return;
+    }
+    if (!idStr.has(vehicleId)) {
+      res.status(404).json({ error: "Not found" });
       return;
     }
     filter.vehicle_id = vehicleId;
@@ -32,14 +38,14 @@ router.get("/service-records", async (req, res) => {
 router.post("/service-records", async (req, res) => {
   const b = req.body ?? {};
   const vehicle_id = typeof b.vehicle_id === "string" ? b.vehicle_id : "";
-  const v = await findOwnedVehicle(req.userId!, vehicle_id);
+  const v = await findEditableVehicle(req.userId!, vehicle_id);
   if (!v) {
     res.status(404).json({ error: "Vehicle not found" });
     return;
   }
   try {
     const doc = await ServiceRecord.create({
-      user_id: req.userId,
+      user_id: v.user_id,
       vehicle_id: v._id,
       date: b.date ? new Date(String(b.date)) : new Date(),
       odometer: b.odometer != null ? Number(b.odometer) : null,
@@ -66,11 +72,17 @@ router.delete("/service-records/:serviceRecordId", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const r = await ServiceRecord.deleteOne({ _id: req.params.serviceRecordId, user_id: req.userId });
-  if (r.deletedCount === 0) {
+  const rec = await ServiceRecord.findById(req.params.serviceRecordId).lean();
+  if (!rec) {
     res.status(404).json({ error: "Not found" });
     return;
   }
+  const veh = await findEditableVehicle(req.userId!, rec.vehicle_id.toString());
+  if (!veh) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  await ServiceRecord.deleteOne({ _id: rec._id });
   res.status(204).end();
 });
 

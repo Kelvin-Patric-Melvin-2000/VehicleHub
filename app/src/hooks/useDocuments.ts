@@ -35,6 +35,7 @@ export function useCreateDocument() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["documents", vars.vehicle_id] });
       qc.invalidateQueries({ queryKey: ["all_documents"] });
+      qc.invalidateQueries({ queryKey: ["analytics", "fleet", "summary"] });
     },
   });
 }
@@ -49,6 +50,7 @@ export function useDeleteDocument() {
     onSuccess: (vehicleId) => {
       qc.invalidateQueries({ queryKey: ["documents", vehicleId] });
       qc.invalidateQueries({ queryKey: ["all_documents"] });
+      qc.invalidateQueries({ queryKey: ["analytics", "fleet", "summary"] });
     },
   });
 }

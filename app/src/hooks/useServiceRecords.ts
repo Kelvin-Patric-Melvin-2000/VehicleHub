@@ -35,6 +35,7 @@ export function useCreateServiceRecord() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["service_records", vars.vehicle_id] });
       qc.invalidateQueries({ queryKey: ["all_service_records"] });
+      qc.invalidateQueries({ queryKey: ["analytics", "fleet", "summary"] });
     },
   });
 }
@@ -49,6 +50,7 @@ export function useDeleteServiceRecord() {
     onSuccess: (vehicleId) => {
       qc.invalidateQueries({ queryKey: ["service_records", vehicleId] });
       qc.invalidateQueries({ queryKey: ["all_service_records"] });
+      qc.invalidateQueries({ queryKey: ["analytics", "fleet", "summary"] });
     },
   });
 }

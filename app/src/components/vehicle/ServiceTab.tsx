@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useServiceRecords, useCreateServiceRecord, useDeleteServiceRecord } from "@/hooks/useServiceRecords";
+import { useMaintenanceTemplates } from "@/hooks/useMaintenanceTemplates";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,12 +8,30 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Trash2, Wrench } from "lucide-react";
-import { format, parseISO, differenceInDays } from "date-fns";
+import { addMonths, format, parseISO, differenceInDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
-export function ServiceTab({ vehicleId }: { vehicleId: string }) {
+export function ServiceTab({
+  vehicleId,
+  vehicleType,
+  currentMileage,
+  readOnly = false,
+}: {
+  vehicleId: string;
+  vehicleType: string;
+  currentMileage: number;
+  readOnly?: boolean;
+}) {
   const { data: records, isLoading } = useServiceRecords(vehicleId);
+  const { data: templates = [] } = useMaintenanceTemplates(vehicleType);
   const createRecord = useCreateServiceRecord();
   const deleteRecord = useDeleteServiceRecord();
   const { toast } = useToast();
@@ -22,6 +41,31 @@ export function ServiceTab({ vehicleId }: { vehicleId: string }) {
     odometer: "", service_type: "", description: "", cost: "",
     next_service_date: "", next_service_mileage: "",
   });
+  const [templateId, setTemplateId] = useState<string>("");
+
+  const applyTemplate = (id: string) => {
+    if (id === "_none_") {
+      setTemplateId("");
+      return;
+    }
+    setTemplateId(id);
+    if (!id) return;
+    const t = templates.find((x) => x.id === id);
+    if (!t) return;
+    const baseOdo = form.odometer ? parseFloat(form.odometer) : Number(currentMileage);
+    const nextDate =
+      t.interval_months != null
+        ? format(addMonths(parseISO(form.date), t.interval_months), "yyyy-MM-dd")
+        : "";
+    const nextKm =
+      t.interval_km != null && Number.isFinite(baseOdo) ? String(Math.round(baseOdo + t.interval_km)) : "";
+    setForm((f) => ({
+      ...f,
+      service_type: t.service_type,
+      next_service_date: nextDate,
+      next_service_mileage: nextKm,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +81,7 @@ export function ServiceTab({ vehicleId }: { vehicleId: string }) {
         next_service_mileage: form.next_service_mileage ? parseFloat(form.next_service_mileage) : null,
       });
       setOpen(false);
+      setTemplateId("");
       setForm({ date: new Date().toISOString().split("T")[0], odometer: "", service_type: "", description: "", cost: "", next_service_date: "", next_service_mileage: "" });
       toast({ title: "Service record added!" });
     } catch (err: any) {
@@ -48,13 +93,47 @@ export function ServiceTab({ vehicleId }: { vehicleId: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Service History</h3>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(o) => {
+            setOpen(o);
+            if (!o) setTemplateId("");
+          }}
+        >
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Add Record</Button>
+            <Button size="sm" className="gap-1.5" disabled={readOnly}>
+              <Plus className="h-4 w-4" /> Add Record
+            </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Add Service Record</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {templates.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Quick template</Label>
+                  <Select value={templateId || "_none_"} onValueChange={applyTemplate}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a maintenance template (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none_">None</SelectItem>
+                      {templates.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.label}
+                          {t.interval_km != null || t.interval_months != null
+                            ? ` · ${t.interval_km != null ? `${t.interval_km} km` : ""}${
+                                t.interval_km != null && t.interval_months != null ? " / " : ""
+                              }${t.interval_months != null ? `${t.interval_months} mo` : ""}`
+                            : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Fills service type and suggested next due date / odometer from this visit.
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required /></div>
                 <div className="space-y-2"><Label>Odometer (km)</Label><Input type="number" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} /></div>
@@ -105,9 +184,11 @@ export function ServiceTab({ vehicleId }: { vehicleId: string }) {
                         </p>
                       )}
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteRecord.mutate({ id: r.id, vehicleId })}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {!readOnly && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteRecord.mutate({ id: r.id, vehicleId })}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -5,6 +5,7 @@ export const VEHICLE_TYPE_SEEDS = [
   { slug: "motorcycle", label: "Motorcycle", sort_order: 1 },
   { slug: "scooter", label: "Scooter", sort_order: 2 },
   { slug: "bike", label: "Bike", sort_order: 3 },
+  { slug: "electric_car", label: "Electric car", sort_order: 4 },
 ] as const;
 
 export async function seedVehicleTypes(): Promise<void> {

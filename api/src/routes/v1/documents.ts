@@ -6,7 +6,7 @@ import multer from "multer";
 import mongoose from "mongoose";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { DocumentModel } from "../../models/Document.js";
-import { findOwnedVehicle } from "../../lib/ownership.js";
+import { findEditableVehicle, getAccessibleVehicleIds } from "../../lib/ownership.js";
 import { toDocumentJson } from "../../lib/serialize.js";
 
 const uploadsRoot = path.join(process.cwd(), "uploads");
@@ -30,10 +30,16 @@ router.use(requireAuth);
 
 router.get("/documents", async (req, res) => {
   const vehicleId = typeof req.query.vehicleId === "string" ? req.query.vehicleId : undefined;
-  const filter: Record<string, unknown> = { user_id: req.userId };
+  const { ids: accessibleIds } = await getAccessibleVehicleIds(req.userId!);
+  const idStr = new Set(accessibleIds.map((id) => id.toString()));
+  const filter: Record<string, unknown> = { vehicle_id: { $in: accessibleIds } };
   if (vehicleId) {
     if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
       res.status(400).json({ error: "Invalid vehicleId" });
+      return;
+    }
+    if (!idStr.has(vehicleId)) {
+      res.status(404).json({ error: "Not found" });
       return;
     }
     filter.vehicle_id = vehicleId;
@@ -58,14 +64,14 @@ router.post("/documents/upload", upload.single("file"), async (req, res) => {
 router.post("/documents", async (req, res) => {
   const b = req.body ?? {};
   const vehicle_id = typeof b.vehicle_id === "string" ? b.vehicle_id : "";
-  const v = await findOwnedVehicle(req.userId!, vehicle_id);
+  const v = await findEditableVehicle(req.userId!, vehicle_id);
   if (!v) {
     res.status(404).json({ error: "Vehicle not found" });
     return;
   }
   try {
     const doc = await DocumentModel.create({
-      user_id: req.userId,
+      user_id: v.user_id,
       vehicle_id: v._id,
       document_type: String(b.document_type ?? ""),
       document_number: b.document_number ?? null,
@@ -90,11 +96,17 @@ router.delete("/documents/:documentId", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const r = await DocumentModel.deleteOne({ _id: req.params.documentId, user_id: req.userId });
-  if (r.deletedCount === 0) {
+  const doc = await DocumentModel.findById(req.params.documentId).lean();
+  if (!doc) {
     res.status(404).json({ error: "Not found" });
     return;
   }
+  const veh = await findEditableVehicle(req.userId!, doc.vehicle_id.toString());
+  if (!veh) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  await DocumentModel.deleteOne({ _id: doc._id });
   res.status(204).end();
 });
 

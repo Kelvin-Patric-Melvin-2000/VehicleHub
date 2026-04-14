@@ -22,7 +22,7 @@ function getExpiryBadge(expiryDate: string | null) {
   return <Badge className="bg-[hsl(142,71%,45%)] text-[hsl(222,47%,6%)]">Valid</Badge>;
 }
 
-export function DocumentsTab({ vehicleId }: { vehicleId: string }) {
+export function DocumentsTab({ vehicleId, readOnly = false }: { vehicleId: string; readOnly?: boolean }) {
   const { data: docs, isLoading } = useDocuments(vehicleId);
   const createDoc = useCreateDocument();
   const deleteDoc = useDeleteDocument();
@@ -64,7 +64,9 @@ export function DocumentsTab({ vehicleId }: { vehicleId: string }) {
         <h3 className="font-semibold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Documents</h3>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Add Document</Button>
+            <Button size="sm" className="gap-1.5" disabled={readOnly}>
+              <Plus className="h-4 w-4" /> Add Document
+            </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Add Document</DialogTitle></DialogHeader>
@@ -122,9 +124,11 @@ export function DocumentsTab({ vehicleId }: { vehicleId: string }) {
                         <Button variant="ghost" size="icon" className="h-8 w-8"><ExternalLink className="h-3.5 w-3.5" /></Button>
                       </a>
                     )}
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc.mutate({ id: doc.id, vehicleId })}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {!readOnly && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc.mutate({ id: doc.id, vehicleId })}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>

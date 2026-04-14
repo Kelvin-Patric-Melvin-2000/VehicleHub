@@ -54,6 +54,9 @@ export function useDeleteVehicle() {
     mutationFn: async (id: string) => {
       await apiJson(`/api/v1/vehicles/${id}`, { method: "DELETE" });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["vehicles"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["vehicles"] });
+      qc.invalidateQueries({ queryKey: ["analytics", "fleet", "fuel"] });
+    },
   });
 }
